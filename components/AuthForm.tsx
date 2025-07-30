@@ -12,9 +12,9 @@ import Link from "next/link"
 import { toast } from "sonner"
 import FormField from "./FormField"
 import { useRouter } from "next/navigation"
-import { createUserWithEmailAndPassword } from "firebase/auth"
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/firebase/client"
-import { signUp } from "@/lib/actions/auth.action"
+import { signIn, signUp } from "@/lib/actions/auth.action"
 
 const formSchema = z.object({
     username: z.string().min(2).max(50),
@@ -73,6 +73,21 @@ const AuthForm = ({ type }: {
                 toast.success("Account created successfully. Please sign in.")
                 router.push('/sign-in')
             } else {
+                const {email, password} = values
+                // Get credentials ( authenticated )
+                const userCredentials = await signInWithEmailAndPassword(auth, email, password)
+                // Get a short live id token
+                const idToken = await userCredentials.user.getIdToken()
+                if (!idToken) {
+                    toast.error("Sign in failed")
+                    return ;
+                }
+
+                // Send ID token for session creation (cookies , etc.. )
+                await signIn({
+                    email, idToken
+                })
+
                 toast.success("Sign in successfully")
                 router.push('/')
             }
