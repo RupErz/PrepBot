@@ -9,7 +9,7 @@ const RootLayout = async ({ children }:
 ) => {
     const isUserAuthenticated = await isAuthenticated()
 
-    if (!isAuthenticated) redirect("/sign-in")
+    if (!isUserAuthenticated) redirect("/sign-in")
         
     return (
         <div className='root-layout'>
