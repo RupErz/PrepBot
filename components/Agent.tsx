@@ -70,6 +70,24 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
         vapi.stop()
     }
 
+    // Take the transcript to generate the feedbacl
+    const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+        console.log("Generate feedback here. ")
+
+        // TODO: Create a server action that generates feedback.
+        const { success, id } = {
+            success: true,
+            id: 'feedback-id'
+        }
+
+        if (success && id) {
+            router.push(`/interview/${interviewId}/feedback`)
+        } else {
+            console.log("Error saving feedback")
+            router.push('/')
+        }
+    }
+
     // Tell our app what it needs to do whenever a certain stage of convo with Vapi get trigger
     useEffect(() => {
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE)
@@ -105,8 +123,13 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
     }, [])
 
     useEffect(() => {
-        if (callStatus === CallStatus.FINISHED) router.push("/");
-
+        if (callStatus === CallStatus.FINISHED) {
+            if (type === 'generate') {
+                router.push("/")
+            } else {
+                handleGenerateFeedback(messages) // router.push with extra steps , generate sme feedbacks
+            }
+        }
         // Error handling when assistant end the call 
         // if (callStatus === CallStatus.FINISHED) {
         // // Try/catch to prevent unhandled promise rejection
