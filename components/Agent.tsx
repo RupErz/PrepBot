@@ -29,45 +29,6 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
     const latestMessage = messages[messages.length - 1]?.content
     const isCallInactiveOrFinished = callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED
  
-
-    // Tell our app what it needs to do whenever a certain stage of convo with Vapi get trigger
-    useEffect(() => {
-        const onCallStart = () => setCallStatus(CallStatus.ACTIVE)
-        const onCallEnd = () => setCallStatus(CallStatus.FINISHED)
-        const onMessage = (message: Message) => {
-            if (message.type === 'transcript' && message.transcriptType === 'final') {
-                const newMessage = { role: message.role, content: message.transcript }
-                setMessages((prev) => [...prev, newMessage])
-            }
-        }
-
-        const onSpeechStart = () => setIsSpeaking(true)
-        const onSpeechEnd = () => setIsSpeaking(false)
-
-        const onError = (error: Error) => console.log('Error', error)
-
-        // Like a event listener
-        vapi.on('call-start', onCallStart)
-        vapi.on('call-end', onCallEnd)
-        vapi.on('message', onMessage)
-        vapi.on('speech-start', onSpeechStart)
-        vapi.on('speech-end', onSpeechEnd)
-        vapi.on('error', onError)
-
-        return () => {
-            vapi.off('call-start', onCallStart)
-            vapi.off('call-end', onCallEnd)
-            vapi.off('message', onMessage)
-            vapi.off('speech-start', onSpeechStart)
-            vapi.off('speech-end', onSpeechEnd)
-            vapi.off('error', onError)
-        }
-    }, [])
-
-    useEffect(() => {
-        if (callStatus === CallStatus.FINISHED) router.push("/");
-    }, [messages, callStatus, type, userId])
-
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING)
 
@@ -109,6 +70,43 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
         vapi.stop()
     }
 
+    // Tell our app what it needs to do whenever a certain stage of convo with Vapi get trigger
+    useEffect(() => {
+        const onCallStart = () => setCallStatus(CallStatus.ACTIVE)
+        const onCallEnd = () => setCallStatus(CallStatus.FINISHED)
+        const onMessage = (message: Message) => {
+            if (message.type === 'transcript' && message.transcriptType === 'final') {
+                const newMessage = { role: message.role, content: message.transcript }
+                setMessages((prev) => [...prev, newMessage])
+            }
+        }
+
+        const onSpeechStart = () => setIsSpeaking(true)
+        const onSpeechEnd = () => setIsSpeaking(false)
+
+        const onError = (error: Error) => console.log('Error', error)
+
+        // Like a event listener
+        vapi.on('call-start', onCallStart)
+        vapi.on('call-end', onCallEnd)
+        vapi.on('message', onMessage)
+        vapi.on('speech-start', onSpeechStart)
+        vapi.on('speech-end', onSpeechEnd)
+        vapi.on('error', onError)
+
+        return () => {
+            vapi.off('call-start', onCallStart)
+            vapi.off('call-end', onCallEnd)
+            vapi.off('message', onMessage)
+            vapi.off('speech-start', onSpeechStart)
+            vapi.off('speech-end', onSpeechEnd)
+            vapi.off('error', onError)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (callStatus === CallStatus.FINISHED) router.push("/");
+    }, [messages, callStatus, type, userId])
 
     return (
         <>
@@ -138,7 +136,7 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
                             height={540}
                             className='rounded-full object-cover size-[120px]'
                         />
-                        <h3>user</h3>
+                        <h3>{userName}</h3>
                     </div>
                 </div>
             </div>
