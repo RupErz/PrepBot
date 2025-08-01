@@ -106,6 +106,17 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
 
     useEffect(() => {
         if (callStatus === CallStatus.FINISHED) router.push("/");
+
+        // Error handling when assistant end the call 
+        // if (callStatus === CallStatus.FINISHED) {
+        // // Try/catch to prevent unhandled promise rejection
+        // try {
+        //     router.push("/");
+        // } catch (err) {
+        //     console.error("Navigation error:", err);
+        // } finally {
+        //     console.log("We finish")
+        // }
     }, [messages, callStatus, type, userId])
 
     return (
