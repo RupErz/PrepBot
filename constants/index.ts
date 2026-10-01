@@ -1,6 +1,9 @@
 import { CreateAssistantDTO } from "@vapi-ai/web/dist/api";
 import { z } from "zod";
 
+// Gemini model used for question generation and feedback
+export const GEMINI_MODEL = "gemini-3.8-flash";
+
 export const mappings = {
   "react.js": "react",
   reactjs: "react",
@@ -153,6 +156,48 @@ End the conversation on a polite and positive note.
       },
     ],
   },
+};
+
+// Replaces the retired Vapi Workflow: a single assistant that collects the interview
+// details by voice. When the call ends, the client sends the transcript to
+// /api/vapi/generate, which extracts the details and creates the interview.
+export const generator: CreateAssistantDTO = {
+  name: "Interview Generator",
+  firstMessage:
+    "Hi {{username}}! Let's set up your practice interview. What job role would you like to practice for?",
+  transcriber: {
+    provider: "deepgram",
+    model: "nova-2",
+    language: "en",
+  },
+  voice: {
+    provider: "11labs",
+    voiceId: "sarah",
+    stability: 0.4,
+    similarityBoost: 0.8,
+    speed: 0.9,
+    style: 0.5,
+    useSpeakerBoost: true,
+  },
+  model: {
+    provider: "openai",
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are a friendly voice assistant helping a user set up a mock job interview. Collect these details one at a time, in a short natural conversation:
+1. Job role
+2. Experience level (junior, mid or senior)
+3. Tech stack (comma separated technologies)
+4. Whether the focus should lean technical or behavioural
+5. How many questions they want
+
+Once you have all five, briefly repeat them back, tell the user their interview will be ready on the dashboard shortly, thank them, and finish by saying "goodbye".
+Keep every reply short; this is a voice conversation.`,
+      },
+    ],
+  },
+  endCallPhrases: ["goodbye"],
 };
 
 export const feedbackSchema = z.object({

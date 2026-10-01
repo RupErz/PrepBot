@@ -14,7 +14,7 @@ PrepBot is designed to be your personal interview coach, leveraging AI voice tec
 
 ## ⚙️ Tech Stack
 
-- **Frontend**: Next.js 14 with TypeScript
+- **Frontend**: Next.js 15 with TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui components
 - **Database**: Firebase Firestore
 - **Authentication**: Firebase Auth
@@ -73,7 +73,7 @@ PrepBot is designed to be your personal interview coach, leveraging AI voice tec
    # Core dependencies
    npm install firebase firebase-admin
    npm install ai @ai-sdk/google
-   npm install @vapi-ai/web-sdk
+   npm install @vapi-ai/web
    npm install dayjs zod
    npm install tailwindcss-animate
    
@@ -94,13 +94,12 @@ PrepBot is designed to be your personal interview coach, leveraging AI voice tec
    NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
    
    # Firebase Admin SDK
-   FIREBASE_ADMIN_PRIVATE_KEY=your_private_key
-   FIREBASE_ADMIN_CLIENT_EMAIL=your_client_email
-   FIREBASE_ADMIN_PROJECT_ID=your_project_id
+   FIREBASE_PRIVATE_KEY=your_private_key
+   FIREBASE_CLIENT_EMAIL=your_client_email
+   FIREBASE_PROJECT_ID=your_project_id
    
    # Vapi Configuration
-   NEXT_PUBLIC_VAPI_PUBLIC_KEY=your_vapi_public_key
-   VAPI_WORKFLOW_ID=your_workflow_id
+   NEXT_PUBLIC_VAPI_WEB_TOKEN=your_vapi_public_key
    
    # Google Gemini AI
    GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_api_key
@@ -112,11 +111,10 @@ PrepBot is designed to be your personal interview coach, leveraging AI voice tec
    - Set up Firestore Database
    - Generate Firebase Admin SDK credentials
 
-6. **Set up Vapi Workflow**
-   - Create a Vapi account
-   - Design your interview workflow
-   - Configure the AI assistant with appropriate prompts
-   - Save the workflow ID to your environment variables
+6. **Set up Vapi**
+   - Create a Vapi account and copy your public key from the dashboard into `NEXT_PUBLIC_VAPI_WEB_TOKEN`
+   - Nothing else needs to be created in the dashboard. Both voice assistants (the interview generator and the interviewer) are defined in `constants/index.ts` and sent to Vapi when a call starts
+   - Vapi retired Workflows in August 2026, so this project no longer uses them
 
 7. **Run the development server**
    ```bash
@@ -196,7 +194,9 @@ prepbot/
 - Server-side authentication verification
 
 ### Interview Generation
-- Google Gemini AI integration
+- A voice assistant asks for the role, level, tech stack, focus and number of questions
+- When the call ends, the transcript is sent to `/api/vapi/generate`, where Gemini extracts the details and writes the questions
+- Google Gemini AI integration (model set in `GEMINI_MODEL` in `constants/index.ts`)
 - Custom prompt engineering
 - Firestore data persistence
 - Dynamic question generation

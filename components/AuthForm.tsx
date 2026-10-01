@@ -45,6 +45,29 @@ const AuthForm = ({ type }: {
         },
     })
 
+    // Turn Firebase auth error codes into messages a user can act on
+    const getAuthErrorMessage = (error: unknown) => {
+        const code = (error as { code?: string })?.code
+        switch (code) {
+            case 'auth/invalid-credential':
+            case 'auth/wrong-password':
+            case 'auth/user-not-found':
+                return 'Incorrect email or password. Please try again.'
+            case 'auth/email-already-in-use':
+                return 'An account with this email already exists. Try signing in.'
+            case 'auth/weak-password':
+                return 'Password is too weak. Use at least 6 characters.'
+            case 'auth/invalid-email':
+                return 'Please enter a valid email address.'
+            case 'auth/too-many-requests':
+                return 'Too many attempts. Please wait a moment and try again.'
+            case 'auth/network-request-failed':
+                return 'Network error. Check your connection and try again.'
+            default:
+                return 'Something went wrong. Please try again.'
+        }
+    }
+
     // 2. Define a submit handler.
     async function onSubmit(values: z.infer<typeof formSchema>) {
         // Do something with the form values.
@@ -93,7 +116,7 @@ const AuthForm = ({ type }: {
             }
         } catch (error) {
             console.log(error)
-            toast.error(`There was an error: ${error}`)
+            toast.error(getAuthErrorMessage(error))
         }
     }
 

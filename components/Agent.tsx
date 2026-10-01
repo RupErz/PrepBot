@@ -1,12 +1,12 @@
 "use client";
 
-import { interviewer } from '@/constants'
+import { interviewer, generator } from '@/constants'
 import { createFeedback } from '@/lib/actions/general.action';
 import { cn } from '@/lib/utils'
 import { vapi } from '@/lib/vapi.sdk'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 enum CallStatus {
     INACTIVE = 'INACTIVE',
@@ -26,28 +26,24 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
     const [isSpeaking, setIsSpeaking] = useState(false)
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE)
     const [messages, setMessages] = useState<SavedMessage[]>([])
+    const generating = useRef(false)
 
     const latestMessage = messages[messages.length - 1]?.content
     const isCallInactiveOrFinished = callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED
  
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING)
+        generating.current = false
 
         // If this is GENERATE interview
         // using a predefined workflow we already attach with the workflow id
         if (type === 'generate') {
-            await vapi.start(
-                undefined,
-                undefined,
-                undefined,
-                process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
-                {
-                    variableValues: {
-                        username: userName,
-                        userid: userId
-                    }
+            await vapi.start(generator, {
+                variableValues: {
+                    username: userName,
+                    userid: userId
                 }
-            )
+            })
         // Otherwise this is ACTUAL INTERVIEW
         // Connect to another interviewer in 'constants'
         } else {
@@ -69,6 +65,22 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
     const handleDisconnect = async () => {
         setCallStatus(CallStatus.FINISHED)
         vapi.stop()
+    }
+
+    // Send the setup conversation to our API, which extracts the details and creates the interview
+    const handleGenerateInterview = async (messages: SavedMessage[]) => {
+        if (generating.current) return
+        generating.current = true
+        try {
+            await fetch('/api/vapi/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcript: messages, userid: userId })
+            })
+        } catch (error) {
+            console.error('Error generating interview', error)
+        }
+        router.push('/')
     }
 
     // Take the transcript to generate the feedbacl
@@ -104,7 +116,15 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
         const onSpeechStart = () => setIsSpeaking(true)
         const onSpeechEnd = () => setIsSpeaking(false)
 
-        const onError = (error: Error) => console.log('Error', error)
+        const onError = (error: Error) => {
+            // The call ending from the assistant's side surfaces as an "ejection" error; it's a normal hang-up
+            const text = `${error?.message ?? ''} ${JSON.stringify(error ?? {})}`.toLowerCase()
+            if (text.includes('ejection') || text.includes('meeting has ended')) {
+                setCallStatus(CallStatus.FINISHED)
+                return
+            }
+            console.log('Error', error)
+        }
 
         // Like a event listener
         vapi.on('call-start', onCallStart)
@@ -127,7 +147,7 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
     useEffect(() => {
         if (callStatus === CallStatus.FINISHED) {
             if (type === 'generate') {
-                router.push("/")
+                handleGenerateInterview(messages)
             } else {
                 handleGenerateFeedback(messages) // router.push with extra steps , generate sme feedbacks
             }

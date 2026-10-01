@@ -1,7 +1,9 @@
-import { generateText } from "ai"
+import { generateText, generateObject } from "ai"
+import { z } from "zod"
 import { google } from "@ai-sdk/google"
 import { getRandomInterviewCover } from "@/lib/utils";
 import { db } from "@/firebase/admin";
+import { GEMINI_MODEL } from "@/constants";
 
 export async function GET() {
     return Response.json({ success: true, data: "THANK YOU"}, { status: 200 })
@@ -9,12 +11,33 @@ export async function GET() {
 
 // Sending Data in the body of the request ( send from client to server )
 export async function POST(request: Request) {
-    const { type, role, level, techstack, amount, userid } = await request.json()
+    const body = await request.json()
+    const { userid, transcript } = body
 
     try {
+        let { type, role, level, techstack, amount } = body
+
+        // Client sends the voice conversation; pull the interview details out of it
+        if (transcript) {
+            const { object } = await generateObject({
+                model: google(GEMINI_MODEL),
+                schema: z.object({
+                    role: z.string(),
+                    level: z.string(),
+                    techstack: z.string().describe("comma separated technologies"),
+                    type: z.string().describe("technical, behavioural or mixed"),
+                    amount: z.number().int().min(1).max(15)
+                }),
+                prompt: `Extract the mock interview details the user asked for from this conversation:\n${transcript
+                    .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
+                    .join("\n")}`
+            })
+            ;({ role, level, techstack, type, amount } = object)
+        }
+
         // Make a prompt to store questions 
         const { text: questions } = await generateText({
-        model: google("gemini-2.0-flash-001"),
+        model: google(GEMINI_MODEL),
         prompt: `Prepare questions for a job interview.
             The job role is ${role}.
             The job experience level is ${level}.
@@ -34,8 +57,8 @@ export async function POST(request: Request) {
             role: role,
             type: type,
             level: level,
-            techstack: techstack.split(','),
-            questions: JSON.parse(questions),
+            techstack: techstack.split(',').map((t: string) => t.trim()),
+            questions: JSON.parse(questions.replace(/```(?:json)?/g, "").trim()),
             userId: userid,
             finalized: true,
             coverImage: getRandomInterviewCover(),
