@@ -5,6 +5,7 @@ import { createFeedback } from '@/lib/actions/general.action';
 import { cn } from '@/lib/utils'
 import { vapi } from '@/lib/vapi.sdk'
 import Image from 'next/image'
+import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 
@@ -72,13 +73,18 @@ const Agent = ({ userName, userId, type, questions, interviewId }: AgentProps) =
         if (generating.current) return
         generating.current = true
         try {
-            await fetch('/api/vapi/generate', {
+            const res = await fetch('/api/vapi/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ transcript: messages, userid: userId })
             })
+            if (!res.ok) {
+                console.error('Generate failed', res.status, await res.text())
+                toast.error('Could not create your interview. Please try again.')
+            }
         } catch (error) {
             console.error('Error generating interview', error)
+            toast.error('Could not create your interview. Please try again.')
         }
         router.push('/')
     }

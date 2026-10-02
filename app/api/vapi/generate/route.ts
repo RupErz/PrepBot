@@ -5,6 +5,9 @@ import { getRandomInterviewCover } from "@/lib/utils";
 import { db } from "@/firebase/admin";
 import { GEMINI_MODEL } from "@/constants";
 
+// Two sequential Gemini calls can exceed the default serverless limit
+export const maxDuration = 60
+
 export async function GET() {
     return Response.json({ success: true, data: "THANK YOU"}, { status: 200 })
 }
