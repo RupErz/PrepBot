@@ -2,7 +2,7 @@ import { CreateAssistantDTO } from "@vapi-ai/web/dist/api";
 import { z } from "zod";
 
 // Gemini model used for question generation and feedback
-export const GEMINI_MODEL = "gemini-3.8-flash";
+export const GEMINI_MODEL = "gemini-flash-lite-latest";
 
 export const mappings = {
   "react.js": "react",

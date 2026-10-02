@@ -1,67 +1,56 @@
-import { generateText, generateObject } from "ai"
+import { generateObject } from "ai"
 import { z } from "zod"
 import { google } from "@ai-sdk/google"
 import { getRandomInterviewCover } from "@/lib/utils";
 import { db } from "@/firebase/admin";
 import { GEMINI_MODEL } from "@/constants";
 
-// Two sequential Gemini calls can exceed the default serverless limit
+// Give the Gemini request room to finish on serverless hosts
 export const maxDuration = 60
 
 export async function GET() {
     return Response.json({ success: true, data: "THANK YOU"}, { status: 200 })
 }
 
-// Sending Data in the body of the request ( send from client to server )
+const interviewSchema = z.object({
+    role: z.string(),
+    level: z.string(),
+    techstack: z.string().describe("comma separated technologies"),
+    type: z.string().describe("technical, behavioural or mixed"),
+    questions: z.array(z.string()).min(1).describe("plain interview questions, no special characters like / or *")
+})
+
+// One Gemini request per interview keeps us inside the free tier quota
 export async function POST(request: Request) {
     const body = await request.json()
     const { userid, transcript } = body
 
     try {
-        let { type, role, level, techstack, amount } = body
+        // The client sends the voice conversation; otherwise use the details sent directly
+        const source = transcript
+            ? `Here is a conversation where a user described the mock interview they want:\n${transcript
+                .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
+                .join("\n")}`
+            : `Role: ${body.role}\nLevel: ${body.level}\nTech stack: ${body.techstack}\nFocus: ${body.type}\nNumber of questions: ${body.amount}`
 
-        // Client sends the voice conversation; pull the interview details out of it
-        if (transcript) {
-            const { object } = await generateObject({
-                model: google(GEMINI_MODEL),
-                schema: z.object({
-                    role: z.string(),
-                    level: z.string(),
-                    techstack: z.string().describe("comma separated technologies"),
-                    type: z.string().describe("technical, behavioural or mixed"),
-                    amount: z.number().int().min(1).max(15)
-                }),
-                prompt: `Extract the mock interview details the user asked for from this conversation:\n${transcript
-                    .map((m: { role: string; content: string }) => `${m.role}: ${m.content}`)
-                    .join("\n")}`
-            })
-            ;({ role, level, techstack, type, amount } = object)
-        }
+        const { object } = await generateObject({
+            model: google(GEMINI_MODEL),
+            maxRetries: 1,
+            schema: interviewSchema,
+            prompt: `Prepare questions for a job interview.
+${source}
 
-        // Make a prompt to store questions 
-        const { text: questions } = await generateText({
-        model: google(GEMINI_MODEL),
-        prompt: `Prepare questions for a job interview.
-            The job role is ${role}.
-            The job experience level is ${level}.
-            The tech stack used in the job is: ${techstack}.
-            The focus between behavioural and technical questions should lean towards: ${type}.
-            The amount of questions required is ${amount}.
-            Please return only questions, without any additional text.
-            The questions are going to be read by a voice assistant so do not use "/" or "*" or any other characters
-            which might break the voice assistant.
-            Return the questions formatted like this:
-            ["Question 1", "Question 2", "Question 3"]
-            
-            Thank you <3 ^0^ !`
-        });
+Return the role, experience level, tech stack and focus (technical, behavioural or mixed) the user wants, plus exactly the number of questions they asked for.
+The focus between behavioural and technical questions should follow what the user asked for.
+The questions will be read aloud by a voice assistant, so do not use "/" or "*" or any other characters that could break it.`
+        })
 
         const interview = {
-            role: role,
-            type: type,
-            level: level,
-            techstack: techstack.split(',').map((t: string) => t.trim()),
-            questions: JSON.parse(questions.replace(/```(?:json)?/g, "").trim()),
+            role: object.role,
+            type: object.type,
+            level: object.level,
+            techstack: object.techstack.split(',').map((t) => t.trim()),
+            questions: object.questions,
             userId: userid,
             finalized: true,
             coverImage: getRandomInterviewCover(),
@@ -72,11 +61,9 @@ export async function POST(request: Request) {
         await db.collection("interviews").add(interview)
 
         return Response.json({ success: true }, { status: 200 })
-
-
     } catch (error) {
         console.error(error)
 
-        return Response.json({ success: false, error }, { status: 500 })
+        return Response.json({ success: false, error: "Could not generate the interview" }, { status: 500 })
     }
 }
